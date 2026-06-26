@@ -21,3 +21,4 @@ We use an automated grading bot that runs your technical tests and checks your l
 4. Commit and push your changes.
 5. Go to your GitHub repository and open a **Pull Request** against your own `main` branch.
 6. 🚦 **Wait 2-3 minutes!** Our grading bot will automatically run your tests and Lighthouse audit, and comment your automated score (out of 50) directly on your Pull Request. I will then review your design and add up to 20 more points for a final grade out of 70!
+Submission PR trigger
