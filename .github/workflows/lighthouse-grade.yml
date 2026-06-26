@@ -1,0 +1,141 @@
+name: Lighthouse Grading Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Read Vercel URL
+        id: read-url
+        run: |
+          if [ ! -f submission.json ]; then
+            echo "submission.json not found!"
+            exit 1
+          fi
+          URL=$(jq -r '.url' submission.json)
+          if [ "$URL" == "PASTE_YOUR_LIVE_VERCEL_URL_HERE" ] || [ -z "$URL" ]; then
+            echo "Please update submission.json with your actual live Vercel URL."
+            exit 1
+          fi
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Run Lighthouse CI
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            ${{ steps.read-url.outputs.url }}
+          temporaryPublicStorage: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and Run Technical Tests
+        run: |
+          cd local-coffee-shop
+          npm install
+          npx vitest run --reporter=json > test-results.json || true
+
+      - name: Calculate Score and Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // --- 1. LIGHTHOUSE SCORING ---
+            let manifest;
+            try {
+              manifest = JSON.parse(fs.readFileSync('.lighthouseci/manifest.json', 'utf8'));
+            } catch (err) {
+              core.setFailed("Could not read Lighthouse manifest. Did the audit run successfully?");
+              return;
+            }
+            
+            const reportPath = path.join('.lighthouseci', manifest[0].jsonPath);
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            
+            const perf = report.categories.performance.score;
+            const a11y = report.categories.accessibility.score;
+            const bp = report.categories['best-practices'].score;
+            const seo = report.categories.seo.score;
+            
+            const perfPct = Math.round(perf * 100);
+            const a11yPct = Math.round(a11y * 100);
+            const bpPct = Math.round(bp * 100);
+            const seoPct = Math.round(seo * 100);
+            
+            const avg = (perfPct + a11yPct + bpPct + seoPct) / 4;
+            const lighthousePoints = Math.floor(avg * 0.20);
+            
+            let passedLighthouse = true;
+            if (perfPct < 90 || a11yPct < 90 || bpPct < 90 || seoPct < 90) {
+              passedLighthouse = false;
+            }
+
+            // --- 2. VITEST SCORING ---
+            let testPoints = 0;
+            let passCount = 0;
+            let totalTests = 3;
+            try {
+              const testResults = JSON.parse(fs.readFileSync('local-coffee-shop/test-results.json', 'utf8'));
+              passCount = testResults.numPassedTests || 0;
+              totalTests = testResults.numTotalTests || 3;
+              testPoints = passCount * 10; // 10 points per test
+              if (testPoints > 30) testPoints = 30; // Max 30 points
+            } catch (err) {
+              console.log("Could not read test results", err);
+            }
+
+            const totalAutomatedScore = lighthousePoints + testPoints;
+            
+            const commentBody = `
+            ## 🚦 Automated Grading Report
+            
+            ### 1. Lighthouse Audit
+            | Category | Score |
+            | --- | --- |
+            | ⚡ Performance | ${perfPct} |
+            | ♿ Accessibility | ${a11yPct} |
+            | 🛠 Best Practices | ${bpPct} |
+            | 🔎 SEO | ${seoPct} |
+            
+            **Average Percentage:** ${avg}%
+            **Lighthouse Points:** ${lighthousePoints} / 20
+            ${passedLighthouse ? '✅ *All categories >= 90!*' : '❌ *One or more categories failed to meet the 90% threshold.*'}
+            
+            ### 2. Technical Requirements (Tests)
+            **Tests Passed:** ${passCount} / ${totalTests}
+            **Test Points:** ${testPoints} / 30
+            
+            ---
+            ### 🏆 Final Automated Score: ${totalAutomatedScore} / 50
+            *(Note: Your instructor will review your PR and assign up to 20 additional points for visual design & clean code, for a total grade out of 70).*
+            `;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+            
+            if (!passedLighthouse) {
+              core.setFailed("Lighthouse scores did not meet the 90% threshold in all categories.");
+            }
+            if (passCount < totalTests) {
+              core.setFailed("One or more technical tests failed.");
+            }

@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "name": "Espresso",
+    "description": "Strong and bold classic single shot of espresso.",
+    "price": 2.50,
+    "category": "Hot Drinks"
+  },
+  {
+    "id": 2,
+    "name": "Cappuccino",
+    "description": "Espresso combined with equal parts steamed milk and deep layer of foam.",
+    "price": 3.75,
+    "category": "Hot Drinks"
+  },
+  {
+    "id": 3,
+    "name": "Caramel Macchiato",
+    "description": "Freshly steamed milk with vanilla-flavored syrup marked with espresso and caramel drizzle.",
+    "price": 4.50,
+    "category": "Hot Drinks"
+  },
+  {
+    "id": 4,
+    "name": "Iced Latte",
+    "description": "Espresso poured over ice and milk, sweetened to your liking.",
+    "price": 4.00,
+    "category": "Cold Drinks"
+  },
+  {
+    "id": 5,
+    "name": "Cold Brew",
+    "description": "Our signature blend, steeped cold for 20 hours for a super-smooth flavor.",
+    "price": 4.25,
+    "category": "Cold Drinks"
+  },
+  {
+    "id": 6,
+    "name": "Blueberry Muffin",
+    "description": "Freshly baked, soft muffin bursting with wild blueberries.",
+    "price": 3.00,
+    "category": "Pastries"
+  },
+  {
+    "id": 7,
+    "name": "Butter Croissant",
+    "description": "Flaky, buttery, and baked to golden perfection.",
+    "price": 2.75,
+    "category": "Pastries"
+  }
+]
